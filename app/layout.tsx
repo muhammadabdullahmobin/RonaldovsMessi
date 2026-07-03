@@ -5,7 +5,10 @@ export const metadata: Metadata = {
   title: "The GOAT Debate - Messi vs Ronaldo",
   description:
     "A neutral, sourced, interactive reference for comparing Lionel Messi and Cristiano Ronaldo across statistics, trophies, records, style, controversies, and legacy.",
-  metadataBase: new URL("https://example.com"),
+  metadataBase: new URL("https://whosthegoat.vercel.app"),
+  verification: {
+    google: "bpZPh9mtzcX_9M3GFZMlM4ZdTdbih2nIEZgsjEtUQkI",
+  },
   openGraph: {
     title: "The GOAT Debate - Messi vs Ronaldo",
     description: "Evidence-based, neutral, interactive comparison of football's defining rivalry.",
