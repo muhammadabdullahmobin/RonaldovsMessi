@@ -4,7 +4,6 @@ const basePath = process.env.GITHUB_ACTIONS === "true" && repoName && !isUserSit
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "export",
   trailingSlash: true,
   basePath,
   assetPrefix: basePath,

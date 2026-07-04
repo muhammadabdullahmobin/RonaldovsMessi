@@ -78,32 +78,7 @@ const defaultPollVotes: Record<PollChoice, number> = {
   Ronaldo: 8
 };
 
-const pollVotesStorageKey = "goat-debate-community-poll-votes";
 const pollChoiceStorageKey = "goat-debate-community-poll-choice";
-
-function readStoredPollVotes(): Record<PollChoice, number> {
-  if (typeof window === "undefined") return defaultPollVotes;
-
-  try {
-    const stored = window.localStorage.getItem(pollVotesStorageKey);
-    if (!stored) return defaultPollVotes;
-
-    const parsed = JSON.parse(stored) as Partial<Record<PollChoice, unknown>>;
-    const messi = Number(parsed.Messi);
-    const ronaldo = Number(parsed.Ronaldo);
-
-    if (!Number.isFinite(messi) || !Number.isFinite(ronaldo) || messi < 0 || ronaldo < 0) {
-      return defaultPollVotes;
-    }
-
-    return {
-      Messi: Math.floor(messi),
-      Ronaldo: Math.floor(ronaldo)
-    };
-  } catch {
-    return defaultPollVotes;
-  }
-}
 
 function readStoredPollChoice(): PollChoice | null {
   if (typeof window === "undefined") return null;
@@ -157,6 +132,8 @@ export function DebateApp() {
   const [votes, setVotes] = useState<Record<PollChoice, number>>(defaultPollVotes);
   const [hasLoadedPoll, setHasLoadedPoll] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
+  const [isVoting, setIsVoting] = useState(false);
+  const [pollError, setPollError] = useState<string | null>(null);
   const totalVotes = Math.max(votes.Messi + votes.Ronaldo, 1);
   const messiPercentage = Math.round((votes.Messi / totalVotes) * 100);
   const ronaldoPercentage = 100 - messiPercentage;
@@ -167,32 +144,69 @@ export function DebateApp() {
   const heroY = useTransform(scrollYProgress, [0, 0.4], [0, 140]);
 
   useEffect(() => {
-    const storedVotes = readStoredPollVotes();
     const storedChoice = readStoredPollChoice();
 
-    setVotes(storedVotes);
     setSelectedPlayer(storedChoice);
     setHasVoted(Boolean(storedChoice));
-    setHasLoadedPoll(true);
+
+    fetch("/api/poll", { cache: "no-store" })
+      .then(async (response) => {
+        const payload = (await response.json()) as {
+          votes?: Record<PollChoice, number>;
+          storage?: "global" | "unconfigured";
+          error?: string;
+        };
+
+        if (payload.votes) {
+          setVotes(payload.votes);
+        }
+
+        if (!response.ok || payload.storage !== "global") {
+          setPollError(payload.error ?? "Live community poll storage is not configured.");
+        }
+      })
+      .catch(() => {
+        setPollError("Live community poll is temporarily unavailable.");
+      })
+      .finally(() => {
+        setHasLoadedPoll(true);
+      });
   }, []);
 
-  const castPollVote = () => {
-    if (!selectedPlayer || hasVoted) return;
+  const castPollVote = async () => {
+    if (!selectedPlayer || hasVoted || isVoting) return;
 
-    setVotes((currentVotes) => {
-      const nextVotes = {
-        ...currentVotes,
-        [selectedPlayer]: currentVotes[selectedPlayer] + 1
+    setIsVoting(true);
+    setPollError(null);
+
+    try {
+      const response = await fetch("/api/poll", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ choice: selectedPlayer })
+      });
+
+      const payload = (await response.json()) as {
+        votes?: Record<PollChoice, number>;
+        error?: string;
       };
 
-      window.localStorage.setItem(pollVotesStorageKey, JSON.stringify(nextVotes));
+      if (!response.ok || !payload.votes) {
+        throw new Error(payload.error ?? "Unable to cast vote.");
+      }
+
+      setVotes(payload.votes);
       window.localStorage.setItem(pollChoiceStorageKey, selectedPlayer);
-
-      return nextVotes;
-    });
-
-    setHasVoted(true);
+      setHasVoted(true);
+    } catch (error) {
+      setPollError(error instanceof Error ? error.message : "Unable to cast vote.");
+    } finally {
+      setIsVoting(false);
+    }
   };
+
 
   const filteredMetrics = useMemo(() => {
     const all = [...coreMetrics, ...expandedMetrics];
@@ -355,16 +369,22 @@ export function DebateApp() {
     <div className="mt-8 text-center">
 
       <button
-        disabled={!hasLoadedPoll || !selectedPlayer || hasVoted}
+        disabled={!hasLoadedPoll || !selectedPlayer || hasVoted || isVoting}
         onClick={castPollVote}
         className="rounded-full bg-gold px-10 py-4 text-lg font-bold text-ink transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {hasVoted ? "✓ Thanks for voting!" : "Cast Vote"}
+        {hasVoted ? "✓ Thanks for voting!" : isVoting ? "Casting vote..." : "Cast Vote"}
       </button>
 
       {hasVoted && selectedPlayer ? (
         <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
-          Your vote for {selectedPlayer} has been saved on this browser.
+          Your vote for {selectedPlayer} has been counted in the live community poll.
+        </p>
+      ) : null}
+
+      {pollError ? (
+        <p className="mt-4 text-sm font-semibold text-rose-500">
+          {pollError}
         </p>
       ) : null}
 
@@ -397,7 +417,7 @@ export function DebateApp() {
       </div>
 
       <p className="mt-8 text-center text-sm text-slate-500">
-        {totalVotes.toLocaleString()} football fans have voted.
+        {hasLoadedPoll ? totalVotes.toLocaleString() : "Loading"} football fans have voted.
       </p>
 
     </div>
