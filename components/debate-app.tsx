@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
@@ -71,6 +71,47 @@ const radar = [
   { category: "Longevity", Messi: 9.5, Ronaldo: 10 }
 ];
 
+type PollChoice = "Messi" | "Ronaldo";
+
+const defaultPollVotes: Record<PollChoice, number> = {
+  Messi: 5,
+  Ronaldo: 8
+};
+
+const pollVotesStorageKey = "goat-debate-community-poll-votes";
+const pollChoiceStorageKey = "goat-debate-community-poll-choice";
+
+function readStoredPollVotes(): Record<PollChoice, number> {
+  if (typeof window === "undefined") return defaultPollVotes;
+
+  try {
+    const stored = window.localStorage.getItem(pollVotesStorageKey);
+    if (!stored) return defaultPollVotes;
+
+    const parsed = JSON.parse(stored) as Partial<Record<PollChoice, unknown>>;
+    const messi = Number(parsed.Messi);
+    const ronaldo = Number(parsed.Ronaldo);
+
+    if (!Number.isFinite(messi) || !Number.isFinite(ronaldo) || messi < 0 || ronaldo < 0) {
+      return defaultPollVotes;
+    }
+
+    return {
+      Messi: Math.floor(messi),
+      Ronaldo: Math.floor(ronaldo)
+    };
+  } catch {
+    return defaultPollVotes;
+  }
+}
+
+function readStoredPollChoice(): PollChoice | null {
+  if (typeof window === "undefined") return null;
+
+  const stored = window.localStorage.getItem(pollChoiceStorageKey);
+  return stored === "Messi" || stored === "Ronaldo" ? stored : null;
+}
+
 function Section({
   id,
   eyebrow,
@@ -112,23 +153,46 @@ export function DebateApp() {
   const [dark, setDark] = useState(true);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("Overall");
-  const [selectedPlayer, setSelectedPlayer] = useState<"Messi" | "Ronaldo" | null>(null);
-
-const [votes, setVotes] = useState({
-  Messi: 5,
-  Ronaldo: 8,
-});
-
-const [hasVoted, setHasVoted] = useState(false);
-const totalVotes = votes.Messi + votes.Ronaldo;
-
-const messiPercentage = Math.round((votes.Messi / totalVotes) * 100);
-const ronaldoPercentage = 100 - messiPercentage;
+  const [selectedPlayer, setSelectedPlayer] = useState<PollChoice | null>(null);
+  const [votes, setVotes] = useState<Record<PollChoice, number>>(defaultPollVotes);
+  const [hasLoadedPoll, setHasLoadedPoll] = useState(false);
+  const [hasVoted, setHasVoted] = useState(false);
+  const totalVotes = Math.max(votes.Messi + votes.Ronaldo, 1);
+  const messiPercentage = Math.round((votes.Messi / totalVotes) * 100);
+  const ronaldoPercentage = 100 - messiPercentage;
   const [weights, setWeights] = useState<Record<string, number>>(
     Object.fromEntries(goatCategories.map(([name]) => [name, 5]))
   );
   const { scrollYProgress } = useScroll();
   const heroY = useTransform(scrollYProgress, [0, 0.4], [0, 140]);
+
+  useEffect(() => {
+    const storedVotes = readStoredPollVotes();
+    const storedChoice = readStoredPollChoice();
+
+    setVotes(storedVotes);
+    setSelectedPlayer(storedChoice);
+    setHasVoted(Boolean(storedChoice));
+    setHasLoadedPoll(true);
+  }, []);
+
+  const castPollVote = () => {
+    if (!selectedPlayer || hasVoted) return;
+
+    setVotes((currentVotes) => {
+      const nextVotes = {
+        ...currentVotes,
+        [selectedPlayer]: currentVotes[selectedPlayer] + 1
+      };
+
+      window.localStorage.setItem(pollVotesStorageKey, JSON.stringify(nextVotes));
+      window.localStorage.setItem(pollChoiceStorageKey, selectedPlayer);
+
+      return nextVotes;
+    });
+
+    setHasVoted(true);
+  };
 
   const filteredMetrics = useMemo(() => {
     const all = [...coreMetrics, ...expandedMetrics];
@@ -257,6 +321,7 @@ const ronaldoPercentage = 100 - messiPercentage;
     <div className="mt-10 grid gap-4 md:grid-cols-2">
 
       <button
+        disabled={hasVoted}
         onClick={() => setSelectedPlayer("Messi")}
         className={`rounded-2xl border p-6 text-left transition-all duration-300 ${
           selectedPlayer === "Messi"
@@ -271,6 +336,7 @@ const ronaldoPercentage = 100 - messiPercentage;
       </button>
 
       <button
+        disabled={hasVoted}
         onClick={() => setSelectedPlayer("Ronaldo")}
         className={`rounded-2xl border p-6 text-left transition-all duration-300 ${
           selectedPlayer === "Ronaldo"
@@ -289,21 +355,18 @@ const ronaldoPercentage = 100 - messiPercentage;
     <div className="mt-8 text-center">
 
       <button
-        disabled={!selectedPlayer || hasVoted}
-        onClick={() => {
-          if (!selectedPlayer || hasVoted) return;
-
-          setVotes({
-            ...votes,
-            [selectedPlayer]: votes[selectedPlayer] + 1,
-          });
-
-          setHasVoted(true);
-        }}
+        disabled={!hasLoadedPoll || !selectedPlayer || hasVoted}
+        onClick={castPollVote}
         className="rounded-full bg-gold px-10 py-4 text-lg font-bold text-ink transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {hasVoted ? "✓ Thanks for voting!" : "Cast Vote"}
       </button>
+
+      {hasVoted && selectedPlayer ? (
+        <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
+          Your vote for {selectedPlayer} has been saved on this browser.
+        </p>
+      ) : null}
 
     </div>
 
