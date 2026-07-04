@@ -175,7 +175,7 @@ export function DebateApp() {
           </motion.div>
           <div className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-7xl items-center gap-10 lg:grid-cols-[1.05fr_.95fr]">
             <div className="z-10">
-              <Pill>Neutral, sourced, interactive | Last updated {lastUpdated}</Pill>
+              <Pill>Neutral • Sourced • Interactive</Pill>
               <h1 className="mt-6 font-display text-4xl font-black leading-tight text-balance text-slate-950 dark:text-white sm:text-5xl lg:text-6xl xl:text-7xl">
                 Messi vs Ronaldo
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-gold via-sky-300 to-rose-300">
