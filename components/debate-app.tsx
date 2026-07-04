@@ -115,8 +115,8 @@ export function DebateApp() {
   const [selectedPlayer, setSelectedPlayer] = useState<"Messi" | "Ronaldo" | null>(null);
 
 const [votes, setVotes] = useState({
-  Messi: 612,
-  Ronaldo: 388,
+  Messi: 5,
+  Ronaldo: 8,
 });
 
 const [hasVoted, setHasVoted] = useState(false);
