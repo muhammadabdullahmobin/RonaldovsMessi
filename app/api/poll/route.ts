@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import net from "node:net";
+import tls from "node:tls";
 
 type PollChoice = "Messi" | "Ronaldo";
+type RedisValue = string | number | null | RedisValue[];
 
 const defaultPollVotes: Record<PollChoice, number> = {
   Messi: 5,
@@ -12,20 +15,129 @@ const pollKeys: Record<PollChoice, string> = {
   Ronaldo: "goat-debate:poll:ronaldo"
 };
 
-const redisUrl = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
-const redisToken = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+const redisRestUrl = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+const redisRestToken = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+const redisSocketUrl = process.env.REDIS_URL ?? process.env.STORAGE_URL;
 
 export const dynamic = "force-dynamic";
 
-async function redisCommand<T>(command: Array<string | number>): Promise<T> {
-  if (!redisUrl || !redisToken) {
+function encodeRedisCommand(command: Array<string | number>) {
+  const parts = [`*${command.length}`];
+
+  for (const item of command) {
+    const value = String(item);
+    parts.push(`$${Buffer.byteLength(value)}`, value);
+  }
+
+  return `${parts.join("\r\n")}\r\n`;
+}
+
+function parseRedisResponse(buffer: Buffer, offset = 0): [RedisValue, number] {
+  const prefix = String.fromCharCode(buffer[offset]);
+  const lineEnd = buffer.indexOf("\r\n", offset);
+
+  if (lineEnd === -1) {
+    throw new Error("Incomplete Redis response.");
+  }
+
+  const line = buffer.toString("utf8", offset + 1, lineEnd);
+  const next = lineEnd + 2;
+
+  if (prefix === "+") return [line, next];
+  if (prefix === ":") return [Number(line), next];
+  if (prefix === "-") throw new Error(line);
+
+  if (prefix === "$") {
+    const length = Number(line);
+    if (length === -1) return [null, next];
+
+    const valueStart = next;
+    const valueEnd = valueStart + length;
+    return [buffer.toString("utf8", valueStart, valueEnd), valueEnd + 2];
+  }
+
+  if (prefix === "*") {
+    const length = Number(line);
+    if (length === -1) return [null, next];
+
+    const values: RedisValue[] = [];
+    let cursor = next;
+
+    for (let index = 0; index < length; index += 1) {
+      const [value, nextCursor] = parseRedisResponse(buffer, cursor);
+      values.push(value);
+      cursor = nextCursor;
+    }
+
+    return [values, cursor];
+  }
+
+  throw new Error("Unsupported Redis response.");
+}
+
+async function redisSocketCommand<T>(command: Array<string | number>): Promise<T> {
+  if (!redisSocketUrl) {
     throw new Error("Poll storage is not configured.");
   }
 
-  const response = await fetch(redisUrl, {
+  const url = new URL(redisSocketUrl);
+  const port = Number(url.port || (url.protocol === "rediss:" ? 6380 : 6379));
+  const host = url.hostname;
+  const password = decodeURIComponent(url.password);
+  const username = decodeURIComponent(url.username || "default");
+  const socket = url.protocol === "rediss:" ? tls.connect({ host, port }) : net.connect({ host, port });
+  const commands: Array<Array<string | number>> = password
+    ? [["AUTH", username, password], command, ["QUIT"]]
+    : [command, ["QUIT"]];
+  const resultCommandIndex = password ? 1 : 0;
+
+  return await new Promise<T>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const timeout = setTimeout(() => {
+      socket.destroy();
+      reject(new Error("Poll storage request timed out."));
+    }, 5000);
+
+    socket.on("connect", () => {
+      socket.write(commands.map(encodeRedisCommand).join(""));
+    });
+    socket.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    socket.on("error", reject);
+    socket.on("end", () => {
+      clearTimeout(timeout);
+
+      try {
+        const buffer = Buffer.concat(chunks);
+        let cursor = 0;
+        let result: RedisValue = null;
+
+        for (let index = 0; index < commands.length; index += 1) {
+          const [value, nextCursor] = parseRedisResponse(buffer, cursor);
+          if (index === resultCommandIndex) {
+            result = value;
+          }
+          cursor = nextCursor;
+        }
+
+        resolve(result as T);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }).finally(() => socket.destroy());
+}
+
+async function redisRestCommand<T>(command: Array<string | number>): Promise<T> {
+  if (!redisRestUrl || !redisRestToken) {
+    throw new Error("Poll storage is not configured.");
+  }
+
+  const response = await fetch(redisRestUrl, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${redisToken}`,
+      Authorization: `Bearer ${redisRestToken}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(command),
@@ -42,6 +154,14 @@ async function redisCommand<T>(command: Array<string | number>): Promise<T> {
   }
 
   return payload.result;
+}
+
+async function redisCommand<T>(command: Array<string | number>): Promise<T> {
+  if (redisRestUrl && redisRestToken) {
+    return redisRestCommand<T>(command);
+  }
+
+  return redisSocketCommand<T>(command);
 }
 
 async function ensurePollSeeded() {
