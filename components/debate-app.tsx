@@ -112,6 +112,18 @@ export function DebateApp() {
   const [dark, setDark] = useState(true);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("Overall");
+  const [selectedPlayer, setSelectedPlayer] = useState<"Messi" | "Ronaldo" | null>(null);
+
+const [votes, setVotes] = useState({
+  Messi: 612,
+  Ronaldo: 388,
+});
+
+const [hasVoted, setHasVoted] = useState(false);
+const totalVotes = votes.Messi + votes.Ronaldo;
+
+const messiPercentage = Math.round((votes.Messi / totalVotes) * 100);
+const ronaldoPercentage = 100 - messiPercentage;
   const [weights, setWeights] = useState<Record<string, number>>(
     Object.fromEntries(goatCategories.map(([name]) => [name, 5]))
   );
@@ -225,7 +237,110 @@ export function DebateApp() {
             </div>
           </div>
         </section>
+<section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+  <div className="glass rounded-3xl border border-white/20 p-8 shadow-panel">
 
+    <div className="text-center">
+      <span className="rounded-full bg-gold/20 px-4 py-2 text-sm font-bold text-gold">
+        COMMUNITY POLL
+      </span>
+
+      <h2 className="mt-5 font-display text-4xl font-black">
+        Before You Read...
+      </h2>
+
+      <p className="mt-3 text-slate-600 dark:text-slate-300">
+        Who do you personally believe is the greatest footballer of all time?
+      </p>
+    </div>
+
+    <div className="mt-10 grid gap-4 md:grid-cols-2">
+
+      <button
+        onClick={() => setSelectedPlayer("Messi")}
+        className={`rounded-2xl border p-6 text-left transition-all duration-300 ${
+          selectedPlayer === "Messi"
+            ? "border-sky-400 bg-sky-500/15 scale-105"
+            : "border-white/20 hover:scale-105 hover:border-sky-300"
+        }`}
+      >
+        <div className="text-2xl font-black">🇦🇷 Lionel Messi</div>
+        <div className="mt-2 text-sm opacity-70">
+          8 Ballons d'Or • World Cup Winner
+        </div>
+      </button>
+
+      <button
+        onClick={() => setSelectedPlayer("Ronaldo")}
+        className={`rounded-2xl border p-6 text-left transition-all duration-300 ${
+          selectedPlayer === "Ronaldo"
+            ? "border-rose-400 bg-rose-500/15 scale-105"
+            : "border-white/20 hover:scale-105 hover:border-rose-300"
+        }`}
+      >
+        <div className="text-2xl font-black">🇵🇹 Cristiano Ronaldo</div>
+        <div className="mt-2 text-sm opacity-70">
+          5 Ballons d'Or • UCL All-Time Top Scorer
+        </div>
+      </button>
+
+    </div>
+
+    <div className="mt-8 text-center">
+
+      <button
+        disabled={!selectedPlayer || hasVoted}
+        onClick={() => {
+          if (!selectedPlayer || hasVoted) return;
+
+          setVotes({
+            ...votes,
+            [selectedPlayer]: votes[selectedPlayer] + 1,
+          });
+
+          setHasVoted(true);
+        }}
+        className="rounded-full bg-gold px-10 py-4 text-lg font-bold text-ink transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {hasVoted ? "✓ Thanks for voting!" : "Cast Vote"}
+      </button>
+
+    </div>
+
+    <div className="mt-12">
+
+      <div className="mb-6 flex justify-between font-bold">
+        <span>🇦🇷 Messi</span>
+        <span>{messiPercentage}%</span>
+      </div>
+
+      <div className="h-4 overflow-hidden rounded-full bg-slate-300 dark:bg-slate-700">
+        <div
+          className="h-full rounded-full bg-sky-500 transition-all duration-700"
+          style={{ width: `${messiPercentage}%` }}
+        />
+      </div>
+
+      <div className="mt-8 mb-6 flex justify-between font-bold">
+        <span>🇵🇹 Ronaldo</span>
+        <span>{ronaldoPercentage}%</span>
+      </div>
+
+      <div className="h-4 overflow-hidden rounded-full bg-slate-300 dark:bg-slate-700">
+        <div
+          className="h-full rounded-full bg-rose-500 transition-all duration-700"
+          style={{ width: `${ronaldoPercentage}%` }}
+        />
+      </div>
+
+      <p className="mt-8 text-center text-sm text-slate-500">
+        {totalVotes.toLocaleString()} football fans have voted.
+      </p>
+
+    </div>
+
+  </div>
+</section>
         <Section id="career" eyebrow="Reference model" title="The debate changes when the filter changes.">
           <div className="glass rounded-2xl p-4 sm:p-6">
             <div className="mb-5 flex flex-wrap gap-2">
