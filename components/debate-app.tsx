@@ -289,8 +289,8 @@ export function DebateApp() {
             <div className="relative h-[560px]">
               <div className="absolute inset-y-4 left-0 w-[55%] overflow-hidden rounded-l-[2rem] border border-white/20 bg-slate-900 shadow-panel">
                 <Image
-                  src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Lionel_Messi_20180626.jpg"
-                  alt="Lionel Messi playing for Argentina"
+                  src="https://media-cldnry.s-nbcnews.com/image/upload/t_nbcnews-fp-1200-630,f_auto,q_auto:best/rockcms/2025-09/250905-messi-rs-45b0a9.jpg"
+                  alt="Lionel Messi with Argentina"
                   fill
                   priority
                   className="object-cover object-center opacity-90"
@@ -300,8 +300,8 @@ export function DebateApp() {
               </div>
               <div className="absolute inset-y-4 right-0 w-[55%] overflow-hidden rounded-r-[2rem] border border-white/20 bg-slate-900 shadow-panel">
                 <Image
-                  src="https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg"
-                  alt="Cristiano Ronaldo playing for Portugal"
+                  src="https://i0.wp.com/sportytell.com/wp-content/uploads/2018/11/Ronaldo-Champions-league-Manchester-United.jpg?zoom=1.25&w=680&ssl=1"
+                  alt="Cristiano Ronaldo playing for Manchester United"
                   fill
                   priority
                   className="object-cover object-center opacity-90"

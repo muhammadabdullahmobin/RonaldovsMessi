@@ -11,7 +11,9 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "upload.wikimedia.org" },
-      { protocol: "https", hostname: "images.unsplash.com" }
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "media-cldnry.s-nbcnews.com" },
+      { protocol: "https", hostname: "i0.wp.com" }
     ]
   }
 };
