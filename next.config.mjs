@@ -13,6 +13,7 @@ const nextConfig = {
       { protocol: "https", hostname: "upload.wikimedia.org" },
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "media-cldnry.s-nbcnews.com" },
+      { protocol: "https", hostname: "i.guim.co.uk" },
       { protocol: "https", hostname: "i0.wp.com" }
     ]
   }
