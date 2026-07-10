@@ -289,7 +289,7 @@ export function DebateApp() {
             <div className="relative h-[560px]">
               <div className="absolute inset-y-4 left-0 w-[55%] overflow-hidden rounded-l-[2rem] border border-white/20 bg-slate-900 shadow-panel">
                 <Image
-                  src="https://media-cldnry.s-nbcnews.com/image/upload/t_nbcnews-fp-1200-630,f_auto,q_auto:best/rockcms/2025-09/250905-messi-rs-45b0a9.jpg"
+                  src="https://media-cldnry.s-nbcnews.com/image/upload/t_fit-760w,f_avif,q_auto:eco,dpr_2/rockcms/2025-09/250905-messi-rs-45b0a9.jpg"
                   alt="Lionel Messi with Argentina"
                   fill
                   priority
